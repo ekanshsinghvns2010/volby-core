@@ -1,1 +1,1 @@
-.
+"""Volby Core application package."""
