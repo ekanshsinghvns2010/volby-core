@@ -45,7 +45,9 @@ public class MainActivity extends Activity {
         send.setText("Send");
 
         responseText = new TextView(this);
-        responseText.setText("Connected to Volby Core Android.");
+        responseText.setText(
+                "Connected to Volby Core Android."
+        );
         responseText.setTextSize(18);
 
         layout.addView(title);
@@ -59,61 +61,104 @@ public class MainActivity extends Activity {
     }
 
     private void handleCommand() {
-        String message = input.getText().toString().trim();
+
+        String message =
+                input.getText().toString().trim();
 
         if (message.isEmpty()) {
-            responseText.setText("Enter a command first.");
+            responseText.setText(
+                    "Enter a command first."
+            );
             return;
         }
 
+        /*
+         * Direct command:
+         *
+         * "open YouTube"
+         *
+         * This works without the AI.
+         */
         String lower = message.toLowerCase();
 
-        // Keep direct local command support.
         if (lower.startsWith("open ")) {
-            String appName = message.substring(5).trim();
+
+            String appName =
+                    message.substring(5).trim();
 
             String packageName =
                     AppRegistry.getPackageName(appName);
 
             if (packageName == null) {
+
                 responseText.setText(
-                        "I don't know how to open " + appName + " yet."
+                        "I don't know how to open "
+                                + appName
+                                + " yet."
                 );
+
                 return;
             }
 
             String result =
-                    AppLauncher.openApp(this, appName);
+                    AppLauncher.openApp(
+                            this,
+                            appName
+                    );
 
             responseText.setText(result);
+
             return;
         }
 
+        /*
+         * Natural-language command.
+         *
+         * Send it to Volby AI.
+         */
         sendToBackend(message);
     }
 
     private void sendToBackend(String message) {
+
         responseText.setText("Thinking...");
 
         new Thread(() -> {
+
             try {
+
                 String encoded =
-                        URLEncoder.encode(message, "UTF-8");
+                        URLEncoder.encode(
+                                message,
+                                "UTF-8"
+                        );
 
                 URL url =
-                        new URL(API_URL + "?message=" + encoded);
+                        new URL(
+                                API_URL
+                                        + "?message="
+                                        + encoded
+                        );
 
                 HttpURLConnection connection =
-                        (HttpURLConnection) url.openConnection();
+                        (HttpURLConnection)
+                                url.openConnection();
 
                 connection.setRequestMethod("POST");
-                connection.setConnectTimeout(10000);
-                connection.setReadTimeout(15000);
+
+                connection.setConnectTimeout(
+                        10000
+                );
+
+                connection.setReadTimeout(
+                        30000
+                );
 
                 BufferedReader reader =
                         new BufferedReader(
                                 new InputStreamReader(
-                                        connection.getInputStream()
+                                        connection
+                                                .getInputStream()
                                 )
                         );
 
@@ -122,54 +167,97 @@ public class MainActivity extends Activity {
 
                 String line;
 
-                while ((line = reader.readLine()) != null) {
+                while (
+                        (line = reader.readLine())
+                                != null
+                ) {
+
                     result.append(line);
                 }
 
                 reader.close();
+
                 connection.disconnect();
 
                 JSONObject json =
-                        new JSONObject(result.toString());
-
-                String response =
-                        json.optString("response", "");
-
-                JSONObject action =
-                        json.optJSONObject("action");
-
-                if (action != null) {
-
-                    String actionName =
-                            action.optString("action", "");
-
-                    String appName =
-                            action.optString("app", "");
-
-                    if ("open_app".equals(actionName)
-                            && !appName.isEmpty()) {
-
-                        String launchResult =
-                                AppLauncher.openApp(
-                                        this,
-                                        appName
-                                );
-
-                        runOnUiThread(() ->
-                                responseText.setText(
-                                        launchResult
-                                )
+                        new JSONObject(
+                                result.toString()
                         );
 
-                        return;
-                    }
-                }
+                String response =
+                        json.optString(
+                                "response",
+                                "No response."
+                        );
 
-                runOnUiThread(() ->
-                        responseText.setText(response)
-                );
+                JSONObject action =
+                        json.optJSONObject(
+                                "action"
+                        );
+
+                runOnUiThread(() -> {
+
+                    responseText.setText(
+                            response
+                    );
+
+                    /*
+                     * Execute AI action.
+                     */
+                    if (action != null) {
+
+                        String actionType =
+                                action.optString(
+                                        "action"
+                                );
+
+                        String appName =
+                                action.optString(
+                                        "app"
+                                );
+
+                        if (
+                                "open_app"
+                                        .equals(actionType)
+                                        && !appName.isEmpty()
+                        ) {
+
+                            String packageName =
+                                    AppRegistry
+                                            .getPackageName(
+                                                    appName
+                                            );
+
+                            if (
+                                    packageName
+                                            == null
+                            ) {
+
+                                responseText.setText(
+                                        appName
+                                                + " is not "
+                                                + "registered."
+                                );
+
+                                return;
+                            }
+
+                            String launchResult =
+                                    AppLauncher
+                                            .openApp(
+                                                    this,
+                                                    appName
+                                            );
+
+                            responseText.setText(
+                                    launchResult
+                            );
+                        }
+                    }
+                });
 
             } catch (Exception e) {
+
                 runOnUiThread(() ->
                         responseText.setText(
                                 "Connection error:\n"
@@ -177,6 +265,7 @@ public class MainActivity extends Activity {
                         )
                 );
             }
+
         }).start();
     }
 }
