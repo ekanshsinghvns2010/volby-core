@@ -5,6 +5,31 @@
 
     <queries>
         <package android:name="com.google.android.youtube" />
+        <package android:name="com.android.chrome" />
+        <package android:name="com.whatsapp" />
+        <package android:name="com.instagram.android" />
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.facebook.orca" />
+        <package android:name="com.linkedin.android" />
+        <package android:name="com.android.vending" />
+        <package android:name="com.google.android.googlequicksearchbox" />
+        <package android:name="com.google.android.gm" />
+        <package android:name="com.google.android.apps.maps" />
+        <package android:name="com.google.android.apps.photos" />
+        <package android:name="com.google.android.apps.docs" />
+        <package android:name="com.spotify.music" />
+        <package android:name="org.telegram.messenger" />
+        <package android:name="com.snapchat.android" />
+        <package android:name="com.discord" />
+        <package android:name="com.twitter.android" />
+        <package android:name="com.pinterest" />
+        <package android:name="com.netflix.mediaclient" />
+        <package android:name="in.amazon.mShop.android.shopping" />
+        <package android:name="com.flipkart.android" />
+        <package android:name="com.phonepe.app" />
+        <package android:name="net.one97.paytm" />
+        <package android:name="com.application.zomato" />
+        <package android:name="in.swiggy.android" />
     </queries>
 
     <application
