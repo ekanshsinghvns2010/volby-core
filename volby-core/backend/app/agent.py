@@ -18,16 +18,100 @@ class VolbyAgent:
         self.url = "https://openrouter.ai/api/v1/chat/completions"
 
     # --------------------------------------------------
-    # FALLBACK INTENT DETECTION
+    # WEBSITE DETECTION
+    # --------------------------------------------------
+
+    def detect_website(self, message):
+
+        text = message.strip()
+
+        patterns = [
+            r"(?:open|visit|go to)\s+"
+            r"(https?://[^\s]+)",
+            
+            r"(?:open|visit|go to)\s+"
+            r"([a-zA-Z0-9-]+\.(?:com|org|net|in|io)(?:/[^\s]*)?)"
+        ]
+
+        for pattern in patterns:
+
+            match = re.search(
+                pattern,
+                text,
+                re.IGNORECASE
+            )
+
+            if match:
+
+                url = match.group(1)
+
+                if not url.startswith("http://") and \
+                   not url.startswith("https://"):
+
+                    url = "https://" + url
+
+                return url
+
+        return None
+
+    # --------------------------------------------------
+    # SEARCH DETECTION
+    # --------------------------------------------------
+
+    def detect_search(self, message):
+
+        text = message.strip()
+
+        prefixes = [
+            "search the web for ",
+            "search the internet for ",
+            "search for ",
+            "look up "
+        ]
+
+        for prefix in prefixes:
+
+            if text.lower().startswith(prefix):
+
+                query = text[len(prefix):].strip()
+
+                if query:
+
+                    return query
+
+        return None
+
+    # --------------------------------------------------
+    # FALLBACK INTENT
     # --------------------------------------------------
 
     def fallback_intent(self, message):
 
         text = message.lower().strip()
 
-        # -----------------------------
-        # DEVICE STATUS
-        # -----------------------------
+        # Website
+
+        website = self.detect_website(message)
+
+        if website:
+
+            return {
+                "intent": "open_website",
+                "url": website
+            }
+
+        # Search
+
+        search = self.detect_search(message)
+
+        if search:
+
+            return {
+                "intent": "web_search",
+                "query": search
+            }
+
+        # Device
 
         device_phrases = [
             "is my phone connected",
@@ -35,68 +119,21 @@ class VolbyAgent:
             "check my device",
             "check device",
             "device status",
-            "phone status",
-            "is the phone connected"
+            "phone status"
         ]
 
         for phrase in device_phrases:
+
             if phrase in text:
+
                 return {
                     "intent": "device_status"
                 }
 
-        # -----------------------------
-        # SEARCH
-        # -----------------------------
-
-        search_prefixes = [
-            "search the web for ",
-            "search for ",
-            "search the internet for ",
-            "google ",
-            "look up "
-        ]
-
-        for prefix in search_prefixes:
-
-            if text.startswith(prefix):
-
-                query = message[len(prefix):].strip()
-
-                if query:
-                    return {
-                        "intent": "web_search",
-                        "query": query
-                    }
-
-        # -----------------------------
-        # WEBSITE
-        # -----------------------------
-
-        website_match = re.search(
-            r"(?:open|visit|go to)\s+"
-            r"(https?://[^\s]+|"
-            r"[a-zA-Z0-9-]+\.(?:com|org|net|in|io)[^\s]*)",
-            text
-        )
-
-        if website_match:
-
-            url = website_match.group(1)
-
-            if not url.startswith("http"):
-                url = "https://" + url
-
-            return {
-                "intent": "open_website",
-                "url": url
-            }
-
-        # -----------------------------
-        # APP KEYWORDS
-        # -----------------------------
+        # Apps
 
         apps = {
+
             "youtube": [
                 "youtube",
                 "watch videos",
@@ -130,15 +167,13 @@ class VolbyAgent:
             ],
 
             "google": [
-                "google",
-                "search something"
+                "google"
             ],
 
             "gmail": [
                 "gmail",
                 "check my email",
-                "check my emails",
-                "read my email"
+                "check my emails"
             ],
 
             "linkedin": [
@@ -159,9 +194,23 @@ class VolbyAgent:
             ],
 
             "netflix": [
-                "netflix",
-                "watch a movie"
+                "netflix"
             ]
+        }
+
+        display_names = {
+            "youtube": "YouTube",
+            "whatsapp": "WhatsApp",
+            "instagram": "Instagram",
+            "facebook": "Facebook",
+            "chrome": "Chrome",
+            "google": "Google",
+            "gmail": "Gmail",
+            "linkedin": "LinkedIn",
+            "spotify": "Spotify",
+            "telegram": "Telegram",
+            "discord": "Discord",
+            "netflix": "Netflix"
         }
 
         for app_name, phrases in apps.items():
@@ -170,47 +219,13 @@ class VolbyAgent:
 
                 if phrase in text:
 
-                    display_name = app_name.title()
-
-                    if app_name == "youtube":
-                        display_name = "YouTube"
-
-                    elif app_name == "whatsapp":
-                        display_name = "WhatsApp"
-
-                    elif app_name == "instagram":
-                        display_name = "Instagram"
-
-                    elif app_name == "facebook":
-                        display_name = "Facebook"
-
-                    elif app_name == "chrome":
-                        display_name = "Chrome"
-
-                    elif app_name == "google":
-                        display_name = "Google"
-
-                    elif app_name == "gmail":
-                        display_name = "Gmail"
-
-                    elif app_name == "linkedin":
-                        display_name = "LinkedIn"
-
-                    elif app_name == "spotify":
-                        display_name = "Spotify"
-
-                    elif app_name == "telegram":
-                        display_name = "Telegram"
-
-                    elif app_name == "discord":
-                        display_name = "Discord"
-
-                    elif app_name == "netflix":
-                        display_name = "Netflix"
-
                     return {
                         "intent": "open_app",
-                        "app": display_name
+                        "app":
+                            display_names.get(
+                                app_name,
+                                app_name.title()
+                            )
                     }
 
         return {
@@ -218,7 +233,7 @@ class VolbyAgent:
         }
 
     # --------------------------------------------------
-    # AI REQUEST
+    # ASK AI
     # --------------------------------------------------
 
     def ask_ai(self, message):
@@ -226,7 +241,7 @@ class VolbyAgent:
         prompt = f"""
 You are Volby Core's intent router.
 
-Understand the user's request and return ONE JSON object.
+Understand the user's request.
 
 Available intents:
 
@@ -236,68 +251,52 @@ open_website
 web_search
 none
 
-For open_app include:
-"app"
+Rules:
 
-For open_website include:
-"url"
-
-For web_search include:
-"query"
+- Use open_app when the user wants an Android application.
+- Use open_website when the user wants a website.
+- Use web_search when the user explicitly wants to search.
+- Use device_status for device connection/status requests.
+- Otherwise use none.
 
 Examples:
 
-User:
-I want to watch some videos
-
-JSON:
+I want to watch videos
 {{"intent":"open_app","app":"YouTube"}}
 
-User:
 I need to message my friend
-
-JSON:
 {{"intent":"open_app","app":"WhatsApp"}}
 
-User:
-Search the web for the latest cricket schedule
+Open Chrome
+{{"intent":"open_app","app":"Chrome"}}
 
-JSON:
-{{"intent":"web_search","query":"latest cricket schedule"}}
-
-User:
 Open wikipedia.org
-
-JSON:
 {{"intent":"open_website","url":"https://wikipedia.org"}}
 
-User:
-Is my phone connected?
+Search the web for cricket news
+{{"intent":"web_search","query":"cricket news"}}
 
-JSON:
+Is my phone connected?
 {{"intent":"device_status"}}
 
+Return ONLY valid JSON.
+
 User:
-Hello
-
-JSON:
-{{"intent":"none"}}
-
-Return ONLY JSON.
-
-User request:
 {message}
 """
 
         response = requests.post(
             self.url,
             headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
+                "Authorization":
+                    f"Bearer {self.api_key}",
+                "Content-Type":
+                    "application/json",
                 "HTTP-Referer":
                     "https://github.com/"
                     "ekanshsinghvns2010/volby-core",
-                "X-Title": "Volby Core"
+                "X-Title":
+                    "Volby Core"
             },
             json={
                 "model": self.model,
@@ -321,7 +320,10 @@ User request:
 
         data = response.json()
 
-        choices = data.get("choices", [])
+        choices = data.get(
+            "choices",
+            []
+        )
 
         if not choices:
             return None
@@ -332,8 +334,6 @@ User request:
             .get("content", "")
             .strip()
         )
-
-        # Remove markdown fences if model adds them.
 
         content = content.replace(
             "```json",
@@ -347,53 +347,58 @@ User request:
 
         content = content.strip()
 
-        # Try normal JSON.
-
         try:
+
             return json.loads(content)
 
         except json.JSONDecodeError:
-            pass
 
-        # Try extracting JSON from surrounding text.
+            match = re.search(
+                r"\{.*\}",
+                content,
+                re.DOTALL
+            )
 
-        match = re.search(
-            r"\{.*\}",
-            content,
-            re.DOTALL
-        )
+            if match:
 
-        if match:
+                try:
 
-            try:
-                return json.loads(
-                    match.group(0)
-                )
+                    return json.loads(
+                        match.group(0)
+                    )
 
-            except json.JSONDecodeError:
-                pass
+                except json.JSONDecodeError:
+                    pass
 
         return None
 
     # --------------------------------------------------
-    # TOOL EXECUTION
+    # EXECUTE INTENT
     # --------------------------------------------------
 
-    def execute_intent(self, decision, message):
+    def execute_intent(
+            self,
+            decision,
+            message
+    ):
 
         if not decision:
+
             decision = self.fallback_intent(
                 message
             )
 
-        intent = decision.get("intent")
+        intent = decision.get(
+            "intent"
+        )
 
-        # DEVICE STATUS
+        # DEVICE
+
         if intent == "device_status":
 
-            tool = TOOLS["device_status"]
-
-            result = tool.execute()
+            result = TOOLS[
+                "device_status"
+            ].execute()
 
             return {
                 "response":
@@ -401,28 +406,35 @@ User request:
                 "action": None
             }
 
-        # OPEN APP
+        # APP
+
         if intent == "open_app":
 
-            app_name = decision.get("app")
+            app_name = decision.get(
+                "app"
+            )
 
             if not app_name:
+
                 decision = self.fallback_intent(
                     message
                 )
 
-                app_name = decision.get("app")
+                app_name = decision.get(
+                    "app"
+                )
 
             if not app_name:
+
                 return {
                     "response":
                         "I couldn't determine which app to open.",
                     "action": None
                 }
 
-            tool = TOOLS["open_app"]
-
-            action = tool.execute(
+            action = TOOLS[
+                "open_app"
+            ].execute(
                 app_name=app_name
             )
 
@@ -432,28 +444,35 @@ User request:
                 "action": action
             }
 
-        # OPEN WEBSITE
+        # WEBSITE
+
         if intent == "open_website":
 
-            url = decision.get("url")
+            url = decision.get(
+                "url"
+            )
 
             if not url:
+
                 decision = self.fallback_intent(
                     message
                 )
 
-                url = decision.get("url")
+                url = decision.get(
+                    "url"
+                )
 
             if not url:
+
                 return {
                     "response":
-                        "I couldn't determine which website to open.",
+                        "I couldn't determine the website.",
                     "action": None
                 }
 
-            tool = TOOLS["open_website"]
-
-            action = tool.execute(
+            action = TOOLS[
+                "open_website"
+            ].execute(
                 url=url
             )
 
@@ -463,28 +482,35 @@ User request:
                 "action": action
             }
 
-        # WEB SEARCH
+        # SEARCH
+
         if intent == "web_search":
 
-            query = decision.get("query")
+            query = decision.get(
+                "query"
+            )
 
             if not query:
+
                 decision = self.fallback_intent(
                     message
                 )
 
-                query = decision.get("query")
+                query = decision.get(
+                    "query"
+                )
 
             if not query:
+
                 return {
                     "response":
-                        "I couldn't determine what to search for.",
+                        "I couldn't determine what to search.",
                     "action": None
                 }
 
-            tool = TOOLS["web_search"]
-
-            action = tool.execute(
+            action = TOOLS[
+                "web_search"
+            ].execute(
                 query=query
             )
 
@@ -494,7 +520,8 @@ User request:
                 "action": action
             }
 
-        # NOTHING
+        # NONE
+
         return {
             "response":
                 f"I received your command: {message}",
@@ -526,6 +553,50 @@ User request:
             }
 
         try:
+
+            # ------------------------------------------
+            # HARD ROUTING FOR SEARCH
+            # ------------------------------------------
+
+            search = self.detect_search(
+                message
+            )
+
+            if search:
+
+                return self.execute_intent(
+                    {
+                        "intent":
+                            "web_search",
+                        "query":
+                            search
+                    },
+                    message
+                )
+
+            # ------------------------------------------
+            # HARD ROUTING FOR WEBSITE
+            # ------------------------------------------
+
+            website = self.detect_website(
+                message
+            )
+
+            if website:
+
+                return self.execute_intent(
+                    {
+                        "intent":
+                            "open_website",
+                        "url":
+                            website
+                    },
+                    message
+                )
+
+            # ------------------------------------------
+            # AI
+            # ------------------------------------------
 
             decision = self.ask_ai(
                 message
