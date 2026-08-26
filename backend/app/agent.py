@@ -1,3 +1,6 @@
+from .tools import TOOLS
+
+
 class VolbyAgent:
     def __init__(self):
         self.name = "Volby Core"
@@ -7,6 +10,11 @@ class VolbyAgent:
 
         if not message:
             return "I didn't receive a command."
+
+        if message.lower() == "check device":
+            tool = TOOLS["device_status"]
+            result = tool.execute()
+            return f"Device status: {result}"
 
         return f"I received your command: {message}"
 
