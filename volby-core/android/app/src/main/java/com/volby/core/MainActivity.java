@@ -82,7 +82,7 @@ public class MainActivity extends Activity {
             }
 
             String result =
-                    AppLauncher.openApp(this, packageName);
+                    AppLauncher.openApp(this, appName);
 
             responseText.setText(result);
             return;
