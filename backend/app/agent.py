@@ -98,7 +98,9 @@ Do not include explanations.
 
             content = data["choices"][0]["message"]["content"]
 
-            decision = json.loads(content)
+            return {
+    "response": f"AI raw response: {content}"
+}
 
             intent = decision.get("intent")
 
