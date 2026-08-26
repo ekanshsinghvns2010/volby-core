@@ -18,7 +18,7 @@ import java.net.URLEncoder;
 public class MainActivity extends Activity {
 
     private static final String API_URL =
-            "https://50272995-afe1-49e4-aee8-d911a471379e-00-2njip0zr1kb6c.pike.replit.dev/chat";
+        "https://volby-core-api.onrender.com/chat";
 
     private TextView responseText;
     private EditText input;
