@@ -7,8 +7,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.volby.core.tools.AppLauncher;
-import com.volby.core.tools.AppRegistry;
+import com.volby.core.tools.ActionExecutor;
 
 import org.json.JSONObject;
 
@@ -54,7 +53,7 @@ public class MainActivity extends Activity {
                 new EditText(this);
 
         input.setHint(
-                "Tell Volby what you want to do"
+                "Enter a command"
         );
 
         Button send =
@@ -83,11 +82,6 @@ public class MainActivity extends Activity {
         );
     }
 
-
-    // -----------------------------------------
-    // SEND COMMAND TO VOLBY CORE
-    // -----------------------------------------
-
     private void sendToBackend() {
 
         String message =
@@ -98,7 +92,7 @@ public class MainActivity extends Activity {
         if (message.isEmpty()) {
 
             responseText.setText(
-                    "Tell me what you want to do."
+                    "Enter a command first."
             );
 
             return;
@@ -141,31 +135,13 @@ public class MainActivity extends Activity {
                         15000
                 );
 
-                int status =
-                        connection.getResponseCode();
-
-                BufferedReader reader;
-
-                if (status >= 200 && status < 300) {
-
-                    reader =
-                            new BufferedReader(
-                                    new InputStreamReader(
-                                            connection
-                                                    .getInputStream()
-                                    )
-                            );
-
-                } else {
-
-                    reader =
-                            new BufferedReader(
-                                    new InputStreamReader(
-                                            connection
-                                                    .getErrorStream()
-                                    )
-                            );
-                }
+                BufferedReader reader =
+                        new BufferedReader(
+                                new InputStreamReader(
+                                        connection
+                                                .getInputStream()
+                                )
+                        );
 
                 StringBuilder result =
                         new StringBuilder();
@@ -182,24 +158,8 @@ public class MainActivity extends Activity {
                 }
 
                 reader.close();
+
                 connection.disconnect();
-
-                if (status < 200 || status >= 300) {
-
-                    final String error =
-                            "Server error "
-                                    + status
-                                    + ":\n"
-                                    + result;
-
-                    runOnUiThread(() ->
-                            responseText.setText(
-                                    error
-                            )
-                    );
-
-                    return;
-                }
 
                 JSONObject json =
                         new JSONObject(
@@ -217,19 +177,69 @@ public class MainActivity extends Activity {
                                 "action"
                         );
 
-                runOnUiThread(() -> {
+                if (action != null) {
 
-                    responseText.setText(
-                            response
-                    );
+                    String actionType =
+                            action.optString(
+                                    "action",
+                                    ""
+                            );
 
-                    if (action != null) {
+                    String value = null;
 
-                        handleAction(
-                                action
-                        );
+                    if (
+                            action.has("app")
+                    ) {
+
+                        value =
+                                action.optString(
+                                        "app"
+                                );
+
+                    } else if (
+                            action.has("url")
+                    ) {
+
+                        value =
+                                action.optString(
+                                        "url"
+                                );
+
+                    } else if (
+                            action.has("query")
+                    ) {
+
+                        value =
+                                action.optString(
+                                        "query"
+                                );
                     }
-                });
+
+                    String finalValue =
+                            value;
+
+                    runOnUiThread(() -> {
+
+                        String localResult =
+                                ActionExecutor.execute(
+                                        MainActivity.this,
+                                        actionType,
+                                        finalValue
+                                );
+
+                        responseText.setText(
+                                localResult
+                        );
+                    });
+
+                } else {
+
+                    runOnUiThread(() ->
+                            responseText.setText(
+                                    response
+                            )
+                    );
+                }
 
             } catch (Exception e) {
 
@@ -242,177 +252,5 @@ public class MainActivity extends Activity {
             }
 
         }).start();
-    }
-
-
-    // -----------------------------------------
-    // EXECUTE VOLBY ACTION
-    // -----------------------------------------
-
-    private void handleAction(
-            JSONObject action
-    ) {
-
-        try {
-
-            String actionType =
-                    action.optString(
-                            "action",
-                            ""
-                    );
-
-            // -----------------------------
-            // OPEN APP
-            // -----------------------------
-
-            if (
-                    actionType.equals(
-                            "open_app"
-                    )
-            ) {
-
-                String appName =
-                        action.optString(
-                                "app",
-                                ""
-                        );
-
-                if (appName.isEmpty()) {
-
-                    responseText.setText(
-                            "AI didn't specify an app."
-                    );
-
-                    return;
-                }
-
-                String packageName =
-                        AppRegistry
-                                .getPackageName(
-                                        appName
-                                );
-
-                if (packageName == null) {
-
-                    responseText.setText(
-                            "I don't know how to open "
-                                    + appName
-                                    + " yet."
-                    );
-
-                    return;
-                }
-
-                String result =
-                        AppLauncher.openApp(
-                                this,
-                                appName
-                        );
-
-                responseText.setText(
-                        result
-                );
-
-                return;
-            }
-
-
-            // -----------------------------
-            // OPEN WEBSITE
-            // -----------------------------
-
-            if (
-                    actionType.equals(
-                            "open_website"
-                    )
-            ) {
-
-                String url =
-                        action.optString(
-                                "url",
-                                ""
-                        );
-
-                if (url.isEmpty()) {
-
-                    responseText.setText(
-                            "AI didn't specify a website."
-                    );
-
-                    return;
-                }
-
-                String result =
-                        AppLauncher.openWebsite(
-                                this,
-                                url
-                        );
-
-                responseText.setText(
-                        result
-                );
-
-                return;
-            }
-
-
-            // -----------------------------
-            // WEB SEARCH
-            // -----------------------------
-
-            if (
-                    actionType.equals(
-                            "web_search"
-                    )
-            ) {
-
-                String query =
-                        action.optString(
-                                "query",
-                                ""
-                        );
-
-                if (query.isEmpty()) {
-
-                    responseText.setText(
-                            "AI didn't specify what to search."
-                    );
-
-                    return;
-                }
-
-                String result =
-                        AppLauncher.webSearch(
-                                this,
-                                query
-                        );
-
-                responseText.setText(
-                        result
-                );
-
-                return;
-            }
-
-
-            // -----------------------------
-            // UNKNOWN ACTION
-            // -----------------------------
-
-            if (!actionType.isEmpty()) {
-
-                responseText.setText(
-                        "Unknown action: "
-                                + actionType
-                );
-            }
-
-        } catch (Exception e) {
-
-            responseText.setText(
-                    "Action error:\n"
-                            + e.getMessage()
-            );
-        }
     }
 }
