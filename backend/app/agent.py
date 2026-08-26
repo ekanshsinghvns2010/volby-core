@@ -11,7 +11,7 @@ class VolbyAgent:
 
         self.api_key = os.getenv("OPENROUTER_API_KEY")
 
-        self.model = "openai/gpt-oss-20b:free"
+        self.model = "openrouter/free"
 
         self.url = "https://openrouter.ai/api/v1/chat/completions"
 
