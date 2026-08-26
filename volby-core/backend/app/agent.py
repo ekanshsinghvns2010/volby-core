@@ -20,6 +20,78 @@ class VolbyAgent:
         )
 
     # ==================================================
+    # WEBSITE DETECTION
+    # ==================================================
+
+    def detect_website(self, message):
+
+        text = message.strip()
+
+        patterns = [
+
+            # https://wikipedia.org
+            r"(https?://[^\s]+)",
+
+            # wikipedia.org
+            r"\b([a-zA-Z0-9-]+\."
+            r"(?:com|org|net|in|io|co|dev)"
+            r"(?:/[^\s]*)?)\b"
+
+        ]
+
+        for pattern in patterns:
+
+            match = re.search(
+                pattern,
+                text,
+                re.IGNORECASE
+            )
+
+            if match:
+
+                url = match.group(1)
+
+                if not url.startswith(
+                    ("http://", "https://")
+                ):
+                    url = "https://" + url
+
+                return url
+
+        return None
+
+    # ==================================================
+    # SEARCH DETECTION
+    # ==================================================
+
+    def detect_search(self, message):
+
+        text = message.strip()
+
+        prefixes = [
+
+            "search the web for ",
+            "search the internet for ",
+            "search for ",
+            "search web for ",
+            "look up "
+
+        ]
+
+        for prefix in prefixes:
+
+            if text.lower().startswith(prefix):
+
+                query = text[
+                    len(prefix):
+                ].strip()
+
+                if query:
+                    return query
+
+        return None
+
+    # ==================================================
     # EXPLICIT TOOL COMMANDS
     # ==================================================
 
@@ -28,37 +100,42 @@ class VolbyAgent:
         text = message.lower().strip()
 
         # ----------------------------------------------
-        # open_website
+        # OPEN WEBSITE
         # ----------------------------------------------
 
         if "open_website" in text:
 
-            match = re.search(
-                r"(?:open_website).*?"
-                r"(?:open|visit|go to)?\s*"
-                r"(https?://[^\s]+|"
-                r"[a-zA-Z0-9-]+\.(?:com|org|net|in|io)"
-                r"(?:/[^\s]*)?)",
-                message,
-                re.IGNORECASE
-            )
+            # First look for an actual URL/domain
+            url = self.detect_website(message)
 
-            if match:
-
-                url = match.group(1)
-
-                if not url.startswith("http://") and \
-                   not url.startswith("https://"):
-
-                    url = "https://" + url
+            if url:
 
                 return {
                     "intent": "open_website",
                     "url": url
                 }
 
+            # Example:
+            # call open_website to open Wikipedia
+
+            match = re.search(
+                r"(?:open|visit|go to)\s+"
+                r"([a-zA-Z0-9-]+)",
+                message,
+                re.IGNORECASE
+            )
+
+            if match:
+
+                site = match.group(1).strip()
+
+                return {
+                    "intent": "open_website",
+                    "url": "https://" + site + ".com"
+                }
+
         # ----------------------------------------------
-        # web_search
+        # WEB SEARCH
         # ----------------------------------------------
 
         if "web_search" in text:
@@ -85,7 +162,7 @@ class VolbyAgent:
                 }
 
         # ----------------------------------------------
-        # device_status
+        # DEVICE STATUS
         # ----------------------------------------------
 
         if "device_status" in text:
@@ -94,105 +171,17 @@ class VolbyAgent:
                 "intent": "device_status"
             }
 
-        # ----------------------------------------------
-        # open_app
-        # ----------------------------------------------
-
-        if "open_app" in text:
-
-            match = re.search(
-                r"open_app.*?"
-                r"(?:open|launch|start)?\s*"
-                r"([A-Za-z][A-Za-z0-9 ]*)$",
-                message,
-                re.IGNORECASE
-            )
-
-            if match:
-
-                return {
-                    "intent": "open_app",
-                    "app": match.group(1).strip()
-                }
-
         return None
 
     # ==================================================
-    # WEBSITE DETECTION
-    # ==================================================
-
-    def detect_website(self, message):
-
-        patterns = [
-
-            r"(?:open|visit|go to)\s+"
-            r"(https?://[^\s]+)",
-
-            r"(?:open|visit|go to)\s+"
-            r"([a-zA-Z0-9-]+\.(?:com|org|net|in|io)"
-            r"(?:/[^\s]*)?)"
-
-        ]
-
-        for pattern in patterns:
-
-            match = re.search(
-                pattern,
-                message,
-                re.IGNORECASE
-            )
-
-            if match:
-
-                url = match.group(1)
-
-                if not url.startswith("http://") and \
-                   not url.startswith("https://"):
-
-                    url = "https://" + url
-
-                return url
-
-        return None
-
-    # ==================================================
-    # SEARCH DETECTION
-    # ==================================================
-
-    def detect_search(self, message):
-
-        prefixes = [
-
-            "search the web for ",
-            "search the internet for ",
-            "search for ",
-            "look up "
-
-        ]
-
-        for prefix in prefixes:
-
-            if message.lower().startswith(prefix):
-
-                query = message[
-                    len(prefix):
-                ].strip()
-
-                if query:
-
-                    return query
-
-        return None
-
-    # ==================================================
-    # FALLBACK
+    # FALLBACK INTENT
     # ==================================================
 
     def fallback_intent(self, message):
 
         text = message.lower().strip()
 
-        # Website
+        # Website first
 
         website = self.detect_website(message)
 
@@ -221,6 +210,7 @@ class VolbyAgent:
             "check device",
             "device status",
             "phone status",
+            "check my phone",
             "is my phone connected",
             "is my device connected"
 
@@ -242,7 +232,8 @@ class VolbyAgent:
                 "youtube",
                 "watch videos",
                 "watch a video",
-                "watch some videos"
+                "watch some videos",
+                "watch video"
             ],
 
             "WhatsApp": [
@@ -264,7 +255,8 @@ class VolbyAgent:
 
             "Chrome": [
                 "chrome",
-                "browse the web"
+                "browse the web",
+                "browse the internet"
             ],
 
             "Google": [
@@ -273,7 +265,8 @@ class VolbyAgent:
 
             "Gmail": [
                 "gmail",
-                "check my email"
+                "check my email",
+                "check my emails"
             ],
 
             "LinkedIn": [
@@ -321,7 +314,9 @@ class VolbyAgent:
     def ask_ai(self, message):
 
         prompt = f"""
-You are the intent router for Volby Core.
+You are Volby Core's intent router.
+
+Understand the user's natural-language request.
 
 Available intents:
 
@@ -331,27 +326,53 @@ open_website
 web_search
 none
 
-Return ONLY JSON.
+Rules:
+
+1. If the user wants an Android application,
+use open_app.
+
+2. If the user wants a website,
+use open_website.
+
+3. If the user wants to search for information,
+use web_search.
+
+4. If the user asks about device connection/status,
+use device_status.
+
+5. Otherwise use none.
 
 Examples:
 
-I want to watch videos
+"I want to watch some videos"
+
 {{"intent":"open_app","app":"YouTube"}}
 
-I need to message my friend
+"I need to message my friend"
+
 {{"intent":"open_app","app":"WhatsApp"}}
 
-Open Chrome
+"Open Chrome"
+
 {{"intent":"open_app","app":"Chrome"}}
 
-Open wikipedia.org
+"Open wikipedia.org"
+
 {{"intent":"open_website","url":"https://wikipedia.org"}}
 
-Search the web for cricket schedule
-{{"intent":"web_search","query":"cricket schedule"}}
+"Go to wikipedia.org"
 
-Is my phone connected?
+{{"intent":"open_website","url":"https://wikipedia.org"}}
+
+"Search the web for the latest cricket schedule"
+
+{{"intent":"web_search","query":"latest cricket schedule"}}
+
+"Is my phone connected?"
+
 {{"intent":"device_status"}}
+
+Return ONLY valid JSON.
 
 User:
 {message}
@@ -405,7 +426,6 @@ User:
         )
 
         if not choices:
-
             return None
 
         content = (
@@ -446,13 +466,12 @@ User:
                     )
 
                 except json.JSONDecodeError:
-
                     return None
 
         return None
 
     # ==================================================
-    # EXECUTE
+    # EXECUTE INTENT
     # ==================================================
 
     def execute_intent(
@@ -471,7 +490,9 @@ User:
             "intent"
         )
 
-        # DEVICE
+        # ----------------------------------------------
+        # DEVICE STATUS
+        # ----------------------------------------------
 
         if intent == "device_status":
 
@@ -485,23 +506,15 @@ User:
                 "action": None
             }
 
-        # APP
+        # ----------------------------------------------
+        # OPEN APP
+        # ----------------------------------------------
 
         if intent == "open_app":
 
             app = decision.get(
                 "app"
             )
-
-            if not app:
-
-                decision = self.fallback_intent(
-                    message
-                )
-
-                app = decision.get(
-                    "app"
-                )
 
             if not app:
 
@@ -523,7 +536,9 @@ User:
                 "action": action
             }
 
-        # WEBSITE
+        # ----------------------------------------------
+        # OPEN WEBSITE
+        # ----------------------------------------------
 
         if intent == "open_website":
 
@@ -551,7 +566,9 @@ User:
                 "action": action
             }
 
-        # SEARCH
+        # ----------------------------------------------
+        # WEB SEARCH
+        # ----------------------------------------------
 
         if intent == "web_search":
 
@@ -579,6 +596,10 @@ User:
                 "action": action
             }
 
+        # ----------------------------------------------
+        # NONE
+        # ----------------------------------------------
+
         return {
             "response":
                 f"I received your command: {message}",
@@ -586,10 +607,28 @@ User:
         }
 
     # ==================================================
-    # MAIN
+    # MAIN THINKING LOOP
     # ==================================================
 
     def think(self, message):
+
+        # DIAGNOSTIC MARKER
+        print(
+            "========================================"
+        )
+
+        print(
+            "VOLBY NEW AGENT VERSION 2026-08-26"
+        )
+
+        print(
+            "Incoming message:",
+            message
+        )
+
+        print(
+            "========================================"
+        )
 
         message = message.strip()
 
@@ -611,7 +650,9 @@ User:
 
         try:
 
-            # 1. Explicit tool commands
+            # ------------------------------------------
+            # 1. EXPLICIT TOOL COMMAND
+            # ------------------------------------------
 
             explicit = self.detect_explicit_tool(
                 message
@@ -619,12 +660,23 @@ User:
 
             if explicit:
 
+                print(
+                    "ROUTER: explicit tool"
+                )
+
+                print(
+                    "DECISION:",
+                    explicit
+                )
+
                 return self.execute_intent(
                     explicit,
                     message
                 )
 
-            # 2. Website
+            # ------------------------------------------
+            # 2. WEBSITE
+            # ------------------------------------------
 
             website = self.detect_website(
                 message
@@ -632,17 +684,30 @@ User:
 
             if website:
 
+                decision = {
+                    "intent":
+                        "open_website",
+                    "url":
+                        website
+                }
+
+                print(
+                    "ROUTER: website"
+                )
+
+                print(
+                    "DECISION:",
+                    decision
+                )
+
                 return self.execute_intent(
-                    {
-                        "intent":
-                            "open_website",
-                        "url":
-                            website
-                    },
+                    decision,
                     message
                 )
 
-            # 3. Search
+            # ------------------------------------------
+            # 3. SEARCH
+            # ------------------------------------------
 
             search = self.detect_search(
                 message
@@ -650,25 +715,53 @@ User:
 
             if search:
 
+                decision = {
+                    "intent":
+                        "web_search",
+                    "query":
+                        search
+                }
+
+                print(
+                    "ROUTER: search"
+                )
+
+                print(
+                    "DECISION:",
+                    decision
+                )
+
                 return self.execute_intent(
-                    {
-                        "intent":
-                            "web_search",
-                        "query":
-                            search
-                    },
+                    decision,
                     message
                 )
 
+            # ------------------------------------------
             # 4. AI
+            # ------------------------------------------
+
+            print(
+                "ROUTER: AI"
+            )
 
             decision = self.ask_ai(
                 message
             )
 
-            # 5. If AI fails, fallback
+            print(
+                "AI DECISION:",
+                decision
+            )
+
+            # ------------------------------------------
+            # 5. FALLBACK
+            # ------------------------------------------
 
             if not decision:
+
+                print(
+                    "AI failed; using fallback."
+                )
 
                 decision = self.fallback_intent(
                     message
