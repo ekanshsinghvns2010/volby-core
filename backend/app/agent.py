@@ -21,26 +21,35 @@ class VolbyAgent:
 
         if not message:
             return {
-                "response": "I didn't receive a command."
+                "response": "I didn't receive a command.",
+                "action": None
             }
 
         if not self.api_key:
             return {
-                "response": "AI configuration is missing."
+                "response": "AI configuration is missing.",
+                "action": None
             }
 
         prompt = f"""
-You are the intent router for Volby Core, an Android AI agent.
+You are the AI intent router for Volby Core, an Android AI agent.
 
-Available tools:
+Your job is to understand the user's request and select the correct
+available tool.
 
-1. device_status
-Description: Check whether the Android device is connected.
+AVAILABLE TOOLS:
 
-2. open_app
-Description: Open an installed Android application.
+device_status
+- Use ONLY when the user is asking about whether their Android device
+  is connected, online, available, or its device status.
 
-Available apps include:
+open_app
+- Use when the user wants to open, launch, start, use, or access an
+  Android application.
+- You must identify the most appropriate app.
+
+Available apps:
+
 YouTube
 WhatsApp
 Instagram
@@ -56,82 +65,53 @@ Camera
 Calculator
 Settings
 
-User request:
-{message}
+IMPORTANT EXAMPLES:
 
-Determine what the user wants.
+User: "I want to watch some videos"
+Answer:
+{{"intent":"open_app","app":"YouTube"}}
 
-IMPORTANT:
-If the request can be fulfilled by opening an installed app,
-use the open_app intent.
+User: "I'm bored, let me watch YouTube"
+Answer:
+{{"intent":"open_app","app":"YouTube"}}
 
-Examples:
+User: "I need to message my friend"
+Answer:
+{{"intent":"open_app","app":"WhatsApp"}}
 
-"Open YouTube"
-→
-{{
-  "intent": "open_app",
-  "app": "YouTube"
-}}
+User: "I want to browse the web"
+Answer:
+{{"intent":"open_app","app":"Chrome"}}
 
-"I want to watch some videos"
-→
-{{
-  "intent": "open_app",
-  "app": "YouTube"
-}}
+User: "Take me to Instagram"
+Answer:
+{{"intent":"open_app","app":"Instagram"}}
 
-"I need to message someone"
-→
-{{
-  "intent": "open_app",
-  "app": "WhatsApp"
-}}
+User: "I want to search something"
+Answer:
+{{"intent":"open_app","app":"Google"}}
 
-"I want to browse the internet"
-→
-{{
-  "intent": "open_app",
-  "app": "Chrome"
-}}
+User: "Open LinkedIn"
+Answer:
+{{"intent":"open_app","app":"LinkedIn"}}
 
-"I want to check Instagram"
-→
-{{
-  "intent": "open_app",
-  "app": "Instagram"
-}}
+User: "Is my phone connected?"
+Answer:
+{{"intent":"device_status"}}
 
-"I need to search something on Google"
-→
-{{
-  "intent": "open_app",
-  "app": "Google"
-}}
+User: "Hello"
+Answer:
+{{"intent":"none"}}
 
-"I want to check my email"
-→
-{{
-  "intent": "open_app",
-  "app": "Gmail"
-}}
-
-"Is my phone connected?"
-→
-{{
-  "intent": "device_status"
-}}
-
-If no available tool can fulfill the request:
-{{
-  "intent": "none"
-}}
+CRITICAL RULE:
+Do NOT use device_status for general requests.
+Only use device_status when the user explicitly wants device
+connection/status information.
 
 Return ONLY valid JSON.
 
-Do not use markdown.
-Do not explain your answer.
-Do not add any text outside the JSON.
+USER REQUEST:
+{message}
 """
 
         try:
@@ -140,7 +120,9 @@ Do not add any text outside the JSON.
                 self.url,
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://github.com/ekanshsinghvns2010/volby-core",
+                    "X-Title": "Volby Core"
                 },
                 json={
                     "model": self.model,
@@ -148,8 +130,8 @@ Do not add any text outside the JSON.
                         {
                             "role": "system",
                             "content": (
-                                "You are a precise intent classifier "
-                                "for an Android AI agent."
+                                "You are a precise Android "
+                                "tool-intent router."
                             )
                         },
                         {
@@ -159,19 +141,34 @@ Do not add any text outside the JSON.
                     ],
                     "temperature": 0
                 },
-                timeout=20
+                timeout=30
             )
 
             response.raise_for_status()
 
             data = response.json()
 
-            content = data["choices"][0]["message"]["content"].strip()
+            choices = data.get("choices")
+
+            if not choices:
+                return {
+                    "response": "AI returned no result.",
+                    "action": None
+                }
+
+            content = choices[0]["message"]["content"].strip()
+
+            # Remove accidental markdown fences.
+            if content.startswith("```"):
+                content = content.replace("```json", "")
+                content = content.replace("```", "")
+                content = content.strip()
 
             decision = json.loads(content)
 
             intent = decision.get("intent")
 
+            # DEVICE STATUS
             if intent == "device_status":
 
                 tool = TOOLS["device_status"]
@@ -183,16 +180,14 @@ Do not add any text outside the JSON.
                     "action": None
                 }
 
+            # OPEN APP
             if intent == "open_app":
 
                 app_name = decision.get("app")
 
                 if not app_name:
                     return {
-                        "response": (
-                            "I couldn't determine which app "
-                            "you want to open."
-                        ),
+                        "response": "I couldn't determine which app to open.",
                         "action": None
                     }
 
@@ -207,6 +202,7 @@ Do not add any text outside the JSON.
                     "action": action
                 }
 
+            # NOTHING MATCHED
             return {
                 "response": f"I received your command: {message}",
                 "action": None
@@ -215,7 +211,24 @@ Do not add any text outside the JSON.
         except json.JSONDecodeError:
 
             return {
-                "response": "The AI returned an invalid decision.",
+                "response": "AI returned an invalid decision.",
+                "action": None
+            }
+
+        except requests.HTTPError as e:
+
+            status = e.response.status_code
+
+            try:
+                error_body = e.response.text
+            except Exception:
+                error_body = ""
+
+            return {
+                "response": (
+                    f"OpenRouter HTTP error {status}: "
+                    f"{error_body[:500]}"
+                ),
                 "action": None
             }
 
