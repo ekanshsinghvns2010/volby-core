@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "android/**"
+      - "volby-core/android/**"
       - ".github/workflows/android.yml"
 
 jobs:
@@ -14,15 +14,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Show repository structure
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "Top-level files:"
-          ls -la
-          echo "Android directory:"
-          ls -la android
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -36,10 +27,10 @@ jobs:
           gradle-version: "8.7"
 
       - name: Build APK
-        run: gradle -p android assembleDebug
+        run: gradle -p volby-core/android assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: volby-core-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: volby-core/android/app/build/outputs/apk/debug/app-debug.apk
