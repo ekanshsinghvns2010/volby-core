@@ -68,6 +68,7 @@ public class MainActivity extends Activity {
 
         String lower = message.toLowerCase();
 
+        // Keep direct local command support.
         if (lower.startsWith("open ")) {
             String appName = message.substring(5).trim();
 
@@ -132,7 +133,37 @@ public class MainActivity extends Activity {
                         new JSONObject(result.toString());
 
                 String response =
-                        json.getString("response");
+                        json.optString("response", "");
+
+                JSONObject action =
+                        json.optJSONObject("action");
+
+                if (action != null) {
+
+                    String actionName =
+                            action.optString("action", "");
+
+                    String appName =
+                            action.optString("app", "");
+
+                    if ("open_app".equals(actionName)
+                            && !appName.isEmpty()) {
+
+                        String launchResult =
+                                AppLauncher.openApp(
+                                        this,
+                                        appName
+                                );
+
+                        runOnUiThread(() ->
+                                responseText.setText(
+                                        launchResult
+                                )
+                        );
+
+                        return;
+                    }
+                }
 
                 runOnUiThread(() ->
                         responseText.setText(response)
