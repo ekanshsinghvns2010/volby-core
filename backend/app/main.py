@@ -28,9 +28,10 @@ def health():
 
 @app.post("/chat")
 def chat(message: str):
-    response = agent.run(message)
+    result = agent.run(message)
 
     return {
         "message": message,
-        "response": response
+        "response": result.get("response"),
+        "action": result.get("action")
     }
