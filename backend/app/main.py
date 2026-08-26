@@ -1,10 +1,13 @@
 from fastapi import FastAPI
+from .agent import VolbyAgent
 
 app = FastAPI(
     title="Volby Core",
     description="Personal AI Agent Core",
     version="0.1.0"
 )
+
+agent = VolbyAgent()
 
 
 @app.get("/")
@@ -25,7 +28,9 @@ def health():
 
 @app.post("/chat")
 def chat(message: str):
+    response = agent.run(message)
+
     return {
         "message": message,
-        "response": "Volby Core received your message."
+        "response": response
     }
