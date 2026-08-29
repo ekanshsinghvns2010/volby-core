@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Internet for Volby Core API -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Voice commands -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Speech recognition service -->
     <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+
+        <!-- Apps Volby can launch -->
         <package android:name="com.google.android.youtube" />
         <package android:name="com.android.chrome" />
         <package android:name="com.whatsapp" />
