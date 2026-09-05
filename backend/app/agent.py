@@ -646,3 +646,280 @@ USER REQUEST:
             "intent":
                 "none"
         }
+# ==================================================
+    # EXECUTE INTENT
+    # ==================================================
+
+    def execute_intent(self, decision, message):
+
+        if not decision:
+            decision = {
+                "intent": "none"
+            }
+
+        intent = decision.get(
+            "intent"
+        )
+
+        # ------------------------------------------------
+        # DEVICE STATUS
+        # ------------------------------------------------
+
+        if intent == "device_status":
+
+            try:
+
+                tool = TOOLS[
+                    "device_status"
+                ]
+
+                result = tool.execute()
+
+                return {
+                    "response":
+                        f"Device status: {result}",
+
+                    "action":
+                        None
+                }
+
+            except Exception as e:
+
+                return {
+                    "response":
+                        f"Could not check device status: {e}",
+
+                    "action":
+                        None
+                }
+
+        # ------------------------------------------------
+        # OPEN APP
+        # ------------------------------------------------
+
+        if intent == "open_app":
+
+            app_name = decision.get(
+                "app"
+            )
+
+            if not app_name:
+
+                return {
+                    "response":
+                        "I couldn't determine which app to open.",
+
+                    "action":
+                        None
+                }
+
+            try:
+
+                tool = TOOLS[
+                    "open_app"
+                ]
+
+                action = tool.execute(
+                    app_name=app_name
+                )
+
+                return {
+                    "response":
+                        f"Opening {app_name}...",
+
+                    "action":
+                        action
+                }
+
+            except Exception as e:
+
+                return {
+                    "response":
+                        f"Could not open {app_name}: {e}",
+
+                    "action":
+                        None
+                }
+
+        # ------------------------------------------------
+        # OPEN WEBSITE
+        # ------------------------------------------------
+
+        if intent == "open_website":
+
+            url = decision.get(
+                "url"
+            )
+
+            if not url:
+
+                return {
+                    "response":
+                        "I couldn't determine which website to open.",
+
+                    "action":
+                        None
+                }
+
+            try:
+
+                tool = TOOLS[
+                    "open_website"
+                ]
+
+                action = tool.execute(
+                    url=url
+                )
+
+                return {
+                    "response":
+                        f"Opening {url}...",
+
+                    "action":
+                        action
+                }
+
+            except Exception as e:
+
+                return {
+                    "response":
+                        f"Could not open website: {e}",
+
+                    "action":
+                        None
+                }
+
+        # ------------------------------------------------
+        # WEB SEARCH
+        # ------------------------------------------------
+
+        if intent == "web_search":
+
+            query = decision.get(
+                "query"
+            )
+
+            if not query:
+
+                return {
+                    "response":
+                        "I couldn't determine what to search for.",
+
+                    "action":
+                        None
+                }
+
+            try:
+
+                tool = TOOLS[
+                    "web_search"
+                ]
+
+                action = tool.execute(
+                    query=query
+                )
+
+                return {
+                    "response":
+                        f"Searching the web for {query}...",
+
+                    "action":
+                        action
+                }
+
+            except Exception as e:
+
+                return {
+                    "response":
+                        f"Could not perform web search: {e}",
+
+                    "action":
+                        None
+                }
+
+        # ------------------------------------------------
+        # NORMAL CONVERSATION
+        # ------------------------------------------------
+
+        return {
+            "response":
+                f"I received your command: {message}",
+
+            "action":
+                None
+        }
+
+
+    # ==================================================
+    # MAIN THINK FUNCTION
+    # ==================================================
+
+    def think(self, message: str):
+
+        message = message.strip()
+
+        if not message:
+
+            return {
+                "response":
+                    "I didn't receive a command.",
+
+                "action":
+                    None
+            }
+
+        # ------------------------------------------------
+        # DIRECT COMMANDS FIRST
+        # ------------------------------------------------
+
+        direct = self.detect_direct_command(
+            message
+        )
+
+        if direct:
+
+            return self.execute_intent(
+                direct,
+                message
+            )
+
+        # ------------------------------------------------
+        # AI ROUTING
+        # ------------------------------------------------
+
+        if self.api_key:
+
+            decision = self.ask_ai(
+                message
+            )
+
+            if decision:
+
+                return self.execute_intent(
+                    decision,
+                    message
+                )
+
+        # ------------------------------------------------
+        # LOCAL FALLBACK
+        # ------------------------------------------------
+
+        fallback = self.fallback_intent(
+            message
+        )
+
+        return self.execute_intent(
+            fallback,
+            message
+        )
+
+
+    # ==================================================
+    # RUN
+    # ==================================================
+
+    def run(self, message: str):
+
+        return self.think(
+            message
+        )
