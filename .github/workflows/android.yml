@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
   push:
     paths:
-  - "volby-core/android/**"
-  - "backend/**"
-  - ".github/workflows/android.yml"
+      - "android/**"
+      - "backend/**"
+      - ".github/workflows/android.yml"
 
 jobs:
   build:
@@ -28,10 +28,10 @@ jobs:
           gradle-version: "8.7"
 
       - name: Build APK
-        run: gradle -p volby-core/android assembleDebug
+        run: gradle -p android assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: volby-core-debug
-          path: volby-core/android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
