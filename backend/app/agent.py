@@ -49,7 +49,6 @@ class VolbyAgent:
 
             url = website_match.group(1)
 
-            # Remove punctuation accidentally captured
             url = url.rstrip(
                 ".,!?;:)"
             )
@@ -64,6 +63,34 @@ class VolbyAgent:
                 "intent": "open_website",
                 "url": url
             }
+
+        # ------------------------------------------------
+        # COMMON WEBSITE NAMES
+        # ------------------------------------------------
+
+        common_websites = {
+
+            "wikipedia": "https://wikipedia.org",
+            "github": "https://github.com",
+            "google.com": "https://google.com",
+            "youtube.com": "https://youtube.com",
+            "instagram.com": "https://instagram.com",
+            "facebook.com": "https://facebook.com",
+            "reddit.com": "https://reddit.com",
+            "linkedin.com": "https://linkedin.com"
+        }
+
+        for name, url in common_websites.items():
+
+            if re.search(
+                rf"\b(?:open|visit|go to)\s+{re.escape(name)}\b",
+                lower
+            ):
+
+                return {
+                    "intent": "open_website",
+                    "url": url
+                }
 
         # ------------------------------------------------
         # SEARCH THE WEB
@@ -96,7 +123,7 @@ class VolbyAgent:
                     }
 
         # ------------------------------------------------
-        # EXPLICIT open_website COMMAND
+        # EXPLICIT OPEN WEBSITE COMMAND
         # ------------------------------------------------
 
         if lower.startswith(
@@ -128,7 +155,7 @@ class VolbyAgent:
                 }
 
         # ------------------------------------------------
-        # EXPLICIT web_search COMMAND
+        # EXPLICIT WEB SEARCH COMMAND
         # ------------------------------------------------
 
         if lower.startswith(
@@ -163,7 +190,7 @@ class VolbyAgent:
 
         return None
 
-# ==================================================
+    # ==================================================
     # AI INTENT ROUTER
     # ==================================================
 
@@ -173,10 +200,8 @@ class VolbyAgent:
 You are the intent router for Volby Core,
 an Android AI agent.
 
-Your job is to understand the user's command
-and return the correct action.
-
-Return ONLY valid JSON.
+Understand the user's command and return
+ONLY valid JSON.
 
 AVAILABLE INTENTS:
 
@@ -220,10 +245,10 @@ Zomato
 Swiggy
 
 ==================================================
-IMPORTANT ROUTING RULES
+ROUTING RULES
 ==================================================
 
-1. OPEN APPS
+OPEN APPS:
 
 "Open YouTube"
 -> {{"intent":"open_app","app":"YouTube"}}
@@ -241,7 +266,7 @@ IMPORTANT ROUTING RULES
 -> {{"intent":"open_app","app":"Instagram"}}
 
 
-2. OPEN WEBSITES
+OPEN WEBSITES:
 
 If the user explicitly asks to open
 a website or domain, ALWAYS use open_website.
@@ -258,10 +283,10 @@ a website or domain, ALWAYS use open_website.
 "Go to google.com"
 -> {{"intent":"open_website","url":"https://google.com"}}
 
-DO NOT use Chrome for these commands.
+DO NOT use Chrome for these.
 
 
-3. WEB SEARCH
+WEB SEARCH:
 
 If the user asks to search the web,
 use web_search.
@@ -275,11 +300,10 @@ use web_search.
 "Look up weather in Delhi"
 -> {{"intent":"web_search","query":"weather in Delhi"}}
 
-DO NOT use open_app Google or Chrome
-for explicit web searches.
+DO NOT use Google or Chrome for explicit searches.
 
 
-4. DEVICE STATUS
+DEVICE STATUS:
 
 "Is my phone connected?"
 -> {{"intent":"device_status"}}
@@ -288,14 +312,13 @@ for explicit web searches.
 -> {{"intent":"device_status"}}
 
 
-5. NORMAL CONVERSATION
+NORMAL CONVERSATION:
 
 "Hello"
 -> {{"intent":"none"}}
 
 "How are you?"
 -> {{"intent":"none"}}
-
 
 ==================================================
 STRICT RULES
@@ -304,10 +327,10 @@ STRICT RULES
 - Return ONLY JSON.
 - Never return Markdown.
 - Never explain the decision.
-- Website/domain requests MUST use open_website.
-- Explicit web searches MUST use web_search.
+- Website requests MUST use open_website.
+- Web searches MUST use web_search.
 - App requests MUST use open_app.
-- Device connection/status requests MUST use device_status.
+- Device status requests MUST use device_status.
 - Normal conversation MUST use none.
 
 USER REQUEST:
@@ -349,8 +372,7 @@ USER REQUEST:
                                 "system",
 
                             "content":
-                                "Return only valid "
-                                "JSON."
+                                "Return only valid JSON."
                         },
 
                         {
@@ -390,7 +412,6 @@ USER REQUEST:
                 .strip()
             )
 
-            # Remove accidental Markdown fences
             content = content.replace(
                 "```json",
                 ""
@@ -408,9 +429,6 @@ USER REQUEST:
                 )
 
             except json.JSONDecodeError:
-
-                # Try to find JSON inside
-                # additional model text
 
                 match = re.search(
                     r"\{.*\}",
@@ -435,8 +453,6 @@ USER REQUEST:
         except Exception:
 
             return None
-
-
     # ==================================================
     # FALLBACK ROUTER
     # ==================================================
@@ -450,15 +466,12 @@ USER REQUEST:
         # ------------------------------------------------
 
         website_match = re.search(
-
             r"(?:open|visit|go to)\s+"
             r"(https?://[^\s]+|"
             r"[a-zA-Z0-9-]+\."
             r"(?:com|org|net|in|io|co|dev)"
             r"(?:/[^\s]*)?)",
-
             message,
-
             re.IGNORECASE
         )
 
@@ -477,12 +490,37 @@ USER REQUEST:
                 url = "https://" + url
 
             return {
-                "intent":
-                    "open_website",
-
-                "url":
-                    url
+                "intent": "open_website",
+                "url": url
             }
+
+        # ------------------------------------------------
+        # COMMON WEBSITES
+        # ------------------------------------------------
+
+        common_websites = {
+
+            "wikipedia": "https://wikipedia.org",
+            "github": "https://github.com",
+            "google.com": "https://google.com",
+            "youtube.com": "https://youtube.com",
+            "instagram.com": "https://instagram.com",
+            "facebook.com": "https://facebook.com",
+            "reddit.com": "https://reddit.com",
+            "linkedin.com": "https://linkedin.com"
+        }
+
+        for name, url in common_websites.items():
+
+            if re.search(
+                rf"\b(?:open|visit|go to)\s+{re.escape(name)}\b",
+                text
+            ):
+
+                return {
+                    "intent": "open_website",
+                    "url": url
+                }
 
         # ------------------------------------------------
         # WEB SEARCH
@@ -510,11 +548,8 @@ USER REQUEST:
                 if query:
 
                     return {
-                        "intent":
-                            "web_search",
-
-                        "query":
-                            query
+                        "intent": "web_search",
+                        "query": query
                     }
 
         # ------------------------------------------------
@@ -537,8 +572,7 @@ USER REQUEST:
             if phrase in text:
 
                 return {
-                    "intent":
-                        "device_status"
+                    "intent": "device_status"
                 }
 
         # ------------------------------------------------
@@ -631,28 +665,22 @@ USER REQUEST:
                 if phrase in text:
 
                     return {
-                        "intent":
-                            "open_app",
-
-                        "app":
-                            app_name
+                        "intent": "open_app",
+                        "app": app_name
                     }
 
-        # ------------------------------------------------
-        # NOTHING MATCHED
-        # ------------------------------------------------
-
         return {
-            "intent":
-                "none"
+            "intent": "none"
         }
-# ==================================================
+
+    # ==================================================
     # EXECUTE INTENT
     # ==================================================
 
     def execute_intent(self, decision, message):
 
         if not decision:
+
             decision = {
                 "intent": "none"
             }
@@ -669,11 +697,9 @@ USER REQUEST:
 
             try:
 
-                tool = TOOLS[
+                result = TOOLS[
                     "device_status"
-                ]
-
-                result = tool.execute()
+                ].execute()
 
                 return {
                     "response":
@@ -715,11 +741,9 @@ USER REQUEST:
 
             try:
 
-                tool = TOOLS[
+                action = TOOLS[
                     "open_app"
-                ]
-
-                action = tool.execute(
+                ].execute(
                     app_name=app_name
                 )
 
@@ -763,11 +787,9 @@ USER REQUEST:
 
             try:
 
-                tool = TOOLS[
+                action = TOOLS[
                     "open_website"
-                ]
-
-                action = tool.execute(
+                ].execute(
                     url=url
                 )
 
@@ -811,11 +833,9 @@ USER REQUEST:
 
             try:
 
-                tool = TOOLS[
+                action = TOOLS[
                     "web_search"
-                ]
-
-                action = tool.execute(
+                ].execute(
                     query=query
                 )
 
@@ -848,7 +868,6 @@ USER REQUEST:
             "action":
                 None
         }
-
 
     # ==================================================
     # MAIN THINK FUNCTION
@@ -912,7 +931,6 @@ USER REQUEST:
             fallback,
             message
         )
-
 
     # ==================================================
     # RUN
