@@ -1,54 +1,192 @@
 import json
 import os
+import re
 import requests
 
 from .tools import TOOLS
 
 
 class VolbyAgent:
+
     def __init__(self):
+
         self.name = "Volby Core"
 
-        self.api_key = os.getenv("OPENROUTER_API_KEY")
+        self.api_key = os.getenv(
+            "OPENROUTER_API_KEY"
+        )
 
         self.model = "openrouter/free"
 
-        self.url = "https://openrouter.ai/api/v1/chat/completions"
+        self.url = (
+            "https://openrouter.ai/api/v1/chat/completions"
+        )
 
-    def think(self, message: str):
+    # ==================================================
+    # DIRECT COMMAND DETECTION
+    # ==================================================
 
-        message = message.strip()
+    def detect_direct_command(self, message):
 
-        if not message:
+        text = message.strip()
+        lower = text.lower()
+
+        # ------------------------------------------------
+        # OPEN WEBSITE
+        # ------------------------------------------------
+
+        website_match = re.search(
+            r"(?:open|visit|go to)\s+"
+            r"(https?://[^\s]+|"
+            r"[a-zA-Z0-9-]+\."
+            r"(?:com|org|net|in|io|co|dev)"
+            r"(?:/[^\s]*)?)",
+            text,
+            re.IGNORECASE
+        )
+
+        if website_match:
+
+            url = website_match.group(1)
+
+            # Remove punctuation accidentally captured
+            url = url.rstrip(
+                ".,!?;:)"
+            )
+
+            if not url.startswith(
+                ("http://", "https://")
+            ):
+
+                url = "https://" + url
+
             return {
-                "response": "I didn't receive a command.",
-                "action": None
+                "intent": "open_website",
+                "url": url
             }
 
-        if not self.api_key:
+        # ------------------------------------------------
+        # SEARCH THE WEB
+        # ------------------------------------------------
+
+        search_prefixes = (
+
+            "search the web for ",
+            "search the internet for ",
+            "search web for ",
+            "search online for ",
+            "search for ",
+            "look up ",
+            "find online "
+        )
+
+        for prefix in search_prefixes:
+
+            if lower.startswith(prefix):
+
+                query = text[
+                    len(prefix):
+                ].strip()
+
+                if query:
+
+                    return {
+                        "intent": "web_search",
+                        "query": query
+                    }
+
+        # ------------------------------------------------
+        # EXPLICIT open_website COMMAND
+        # ------------------------------------------------
+
+        if lower.startswith(
+            "open_website"
+        ):
+
+            value = re.sub(
+                r"^open_website\s*",
+                "",
+                text,
+                flags=re.IGNORECASE
+            ).strip()
+
+            if value:
+
+                value = value.rstrip(
+                    ".,!?;:)"
+                )
+
+                if not value.startswith(
+                    ("http://", "https://")
+                ):
+
+                    value = "https://" + value
+
+                return {
+                    "intent": "open_website",
+                    "url": value
+                }
+
+        # ------------------------------------------------
+        # EXPLICIT web_search COMMAND
+        # ------------------------------------------------
+
+        if lower.startswith(
+            "web_search"
+        ):
+
+            query = re.sub(
+                r"^web_search\s*",
+                "",
+                text,
+                flags=re.IGNORECASE
+            ).strip()
+
+            if query:
+
+                return {
+                    "intent": "web_search",
+                    "query": query
+                }
+
+        # ------------------------------------------------
+        # DEVICE STATUS
+        # ------------------------------------------------
+
+        if lower.startswith(
+            "device_status"
+        ):
+
             return {
-                "response": "AI configuration is missing.",
-                "action": None
+                "intent": "device_status"
             }
+
+        return None
+
+# ==================================================
+    # AI INTENT ROUTER
+    # ==================================================
+
+    def ask_ai(self, message):
 
         prompt = f"""
-You are the AI intent router for Volby Core, an Android AI agent.
+You are the intent router for Volby Core,
+an Android AI agent.
 
-Your job is to understand the user's request and select the correct
-available tool.
+Your job is to understand the user's command
+and return the correct action.
 
-AVAILABLE TOOLS:
+Return ONLY valid JSON.
+
+AVAILABLE INTENTS:
 
 device_status
-- Use ONLY when the user is asking about whether their Android device
-  is connected, online, available, or its device status.
-
 open_app
-- Use when the user wants to open, launch, start, use, or access an
-  Android application.
-- You must identify the most appropriate app.
+open_website
+web_search
+none
 
-Available apps:
+AVAILABLE APPS:
 
 YouTube
 WhatsApp
@@ -59,88 +197,176 @@ Google
 Play Store
 LinkedIn
 Gmail
-Maps
-Gallery
-Camera
-Calculator
-Settings
+Google Maps
+Google Photos
+Google Drive
+Google Meet
+Google Calendar
+Google Translate
+YouTube Music
+Spotify
+Telegram
+Snapchat
+Reddit
+Discord
+X
+Pinterest
+Netflix
+Amazon
+Flipkart
+PhonePe
+Paytm
+Zomato
+Swiggy
 
-IMPORTANT EXAMPLES:
+==================================================
+IMPORTANT ROUTING RULES
+==================================================
 
-User: "I want to watch some videos"
-Answer:
-{{"intent":"open_app","app":"YouTube"}}
+1. OPEN APPS
 
-User: "I'm bored, let me watch YouTube"
-Answer:
-{{"intent":"open_app","app":"YouTube"}}
+"Open YouTube"
+-> {{"intent":"open_app","app":"YouTube"}}
 
-User: "I need to message my friend"
-Answer:
-{{"intent":"open_app","app":"WhatsApp"}}
+"Watch videos"
+-> {{"intent":"open_app","app":"YouTube"}}
 
-User: "I want to browse the web"
-Answer:
-{{"intent":"open_app","app":"Chrome"}}
+"Open WhatsApp"
+-> {{"intent":"open_app","app":"WhatsApp"}}
 
-User: "Take me to Instagram"
-Answer:
-{{"intent":"open_app","app":"Instagram"}}
+"Open Chrome"
+-> {{"intent":"open_app","app":"Chrome"}}
 
-User: "I want to search something"
-Answer:
-{{"intent":"open_app","app":"Google"}}
+"Open Instagram"
+-> {{"intent":"open_app","app":"Instagram"}}
 
-User: "Open LinkedIn"
-Answer:
-{{"intent":"open_app","app":"LinkedIn"}}
 
-User: "Is my phone connected?"
-Answer:
-{{"intent":"device_status"}}
+2. OPEN WEBSITES
 
-User: "Hello"
-Answer:
-{{"intent":"none"}}
+If the user explicitly asks to open
+a website or domain, ALWAYS use open_website.
 
-CRITICAL RULE:
-Do NOT use device_status for general requests.
-Only use device_status when the user explicitly wants device
-connection/status information.
+"Open Wikipedia"
+-> {{"intent":"open_website","url":"https://wikipedia.org"}}
 
-Return ONLY valid JSON.
+"Open wikipedia.org"
+-> {{"intent":"open_website","url":"https://wikipedia.org"}}
+
+"Visit github.com"
+-> {{"intent":"open_website","url":"https://github.com"}}
+
+"Go to google.com"
+-> {{"intent":"open_website","url":"https://google.com"}}
+
+DO NOT use Chrome for these commands.
+
+
+3. WEB SEARCH
+
+If the user asks to search the web,
+use web_search.
+
+"Search the web for cricket news"
+-> {{"intent":"web_search","query":"cricket news"}}
+
+"Search for latest cricket schedule"
+-> {{"intent":"web_search","query":"latest cricket schedule"}}
+
+"Look up weather in Delhi"
+-> {{"intent":"web_search","query":"weather in Delhi"}}
+
+DO NOT use open_app Google or Chrome
+for explicit web searches.
+
+
+4. DEVICE STATUS
+
+"Is my phone connected?"
+-> {{"intent":"device_status"}}
+
+"Check my device"
+-> {{"intent":"device_status"}}
+
+
+5. NORMAL CONVERSATION
+
+"Hello"
+-> {{"intent":"none"}}
+
+"How are you?"
+-> {{"intent":"none"}}
+
+
+==================================================
+STRICT RULES
+==================================================
+
+- Return ONLY JSON.
+- Never return Markdown.
+- Never explain the decision.
+- Website/domain requests MUST use open_website.
+- Explicit web searches MUST use web_search.
+- App requests MUST use open_app.
+- Device connection/status requests MUST use device_status.
+- Normal conversation MUST use none.
 
 USER REQUEST:
+
 {message}
 """
 
         try:
 
             response = requests.post(
+
                 self.url,
+
                 headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://github.com/ekanshsinghvns2010/volby-core",
-                    "X-Title": "Volby Core"
+                    "Authorization":
+                        f"Bearer {self.api_key}",
+
+                    "Content-Type":
+                        "application/json",
+
+                    "HTTP-Referer":
+                        "https://github.com/"
+                        "ekanshsinghvns2010/"
+                        "volby-core",
+
+                    "X-Title":
+                        "Volby Core"
                 },
+
                 json={
-                    "model": self.model,
+
+                    "model":
+                        self.model,
+
                     "messages": [
+
                         {
-                            "role": "system",
-                            "content": (
-                                "You are a precise Android "
-                                "tool-intent router."
-                            )
+                            "role":
+                                "system",
+
+                            "content":
+                                "Return only valid "
+                                "JSON."
                         },
+
                         {
-                            "role": "user",
-                            "content": prompt
+                            "role":
+                                "user",
+
+                            "content":
+                                prompt
                         }
+
                     ],
+
                     "temperature": 0
+
                 },
+
                 timeout=30
             )
 
@@ -148,103 +374,275 @@ USER REQUEST:
 
             data = response.json()
 
-            choices = data.get("choices")
+            choices = data.get(
+                "choices",
+                []
+            )
 
             if not choices:
-                return {
-                    "response": "AI returned no result.",
-                    "action": None
-                }
 
-            content = choices[0]["message"]["content"].strip()
+                return None
 
-            # Remove accidental markdown fences.
-            if content.startswith("```"):
-                content = content.replace("```json", "")
-                content = content.replace("```", "")
-                content = content.strip()
+            content = (
+                choices[0]
+                .get("message", {})
+                .get("content", "")
+                .strip()
+            )
 
-            decision = json.loads(content)
+            # Remove accidental Markdown fences
+            content = content.replace(
+                "```json",
+                ""
+            )
 
-            intent = decision.get("intent")
-
-            # DEVICE STATUS
-            if intent == "device_status":
-
-                tool = TOOLS["device_status"]
-
-                result = tool.execute()
-
-                return {
-                    "response": f"Device status: {result}",
-                    "action": None
-                }
-
-            # OPEN APP
-            if intent == "open_app":
-
-                app_name = decision.get("app")
-
-                if not app_name:
-                    return {
-                        "response": "I couldn't determine which app to open.",
-                        "action": None
-                    }
-
-                tool = TOOLS["open_app"]
-
-                action = tool.execute(
-                    app_name=app_name
-                )
-
-                return {
-                    "response": f"Opening {app_name}...",
-                    "action": action
-                }
-
-            # NOTHING MATCHED
-            return {
-                "response": f"I received your command: {message}",
-                "action": None
-            }
-
-        except json.JSONDecodeError:
-
-            return {
-                "response": "AI returned an invalid decision.",
-                "action": None
-            }
-
-        except requests.HTTPError as e:
-
-            status = e.response.status_code
+            content = content.replace(
+                "```",
+                ""
+            ).strip()
 
             try:
-                error_body = e.response.text
-            except Exception:
-                error_body = ""
+
+                return json.loads(
+                    content
+                )
+
+            except json.JSONDecodeError:
+
+                # Try to find JSON inside
+                # additional model text
+
+                match = re.search(
+                    r"\{.*\}",
+                    content,
+                    re.DOTALL
+                )
+
+                if match:
+
+                    try:
+
+                        return json.loads(
+                            match.group(0)
+                        )
+
+                    except json.JSONDecodeError:
+
+                        return None
+
+                return None
+
+        except Exception:
+
+            return None
+
+
+    # ==================================================
+    # FALLBACK ROUTER
+    # ==================================================
+
+    def fallback_intent(self, message):
+
+        text = message.lower().strip()
+
+        # ------------------------------------------------
+        # WEBSITE
+        # ------------------------------------------------
+
+        website_match = re.search(
+
+            r"(?:open|visit|go to)\s+"
+            r"(https?://[^\s]+|"
+            r"[a-zA-Z0-9-]+\."
+            r"(?:com|org|net|in|io|co|dev)"
+            r"(?:/[^\s]*)?)",
+
+            message,
+
+            re.IGNORECASE
+        )
+
+        if website_match:
+
+            url = website_match.group(1)
+
+            url = url.rstrip(
+                ".,!?;:)"
+            )
+
+            if not url.startswith(
+                ("http://", "https://")
+            ):
+
+                url = "https://" + url
 
             return {
-                "response": (
-                    f"OpenRouter HTTP error {status}: "
-                    f"{error_body[:500]}"
-                ),
-                "action": None
+                "intent":
+                    "open_website",
+
+                "url":
+                    url
             }
 
-        except requests.RequestException as e:
+        # ------------------------------------------------
+        # WEB SEARCH
+        # ------------------------------------------------
 
-            return {
-                "response": f"AI connection error: {str(e)}",
-                "action": None
-            }
+        search_prefixes = (
 
-        except Exception as e:
+            "search the web for ",
+            "search the internet for ",
+            "search web for ",
+            "search online for ",
+            "search for ",
+            "look up ",
+            "find online "
+        )
 
-            return {
-                "response": f"AI processing error: {str(e)}",
-                "action": None
-            }
+        for prefix in search_prefixes:
 
-    def run(self, message: str):
-        return self.think(message)
+            if text.startswith(prefix):
+
+                query = message[
+                    len(prefix):
+                ].strip()
+
+                if query:
+
+                    return {
+                        "intent":
+                            "web_search",
+
+                        "query":
+                            query
+                    }
+
+        # ------------------------------------------------
+        # DEVICE STATUS
+        # ------------------------------------------------
+
+        device_phrases = (
+
+            "check device",
+            "device status",
+            "phone status",
+            "is my phone connected",
+            "is my device connected",
+            "is my phone online",
+            "is my device online"
+        )
+
+        for phrase in device_phrases:
+
+            if phrase in text:
+
+                return {
+                    "intent":
+                        "device_status"
+                }
+
+        # ------------------------------------------------
+        # APP DETECTION
+        # ------------------------------------------------
+
+        app_patterns = {
+
+            "YouTube": [
+                "youtube",
+                "watch videos",
+                "watch a video",
+                "watch some videos"
+            ],
+
+            "WhatsApp": [
+                "whatsapp",
+                "message my friend",
+                "send a message",
+                "chat with my friend"
+            ],
+
+            "Instagram": [
+                "instagram",
+                "look at reels"
+            ],
+
+            "Facebook": [
+                "facebook"
+            ],
+
+            "Chrome": [
+                "chrome",
+                "browse the web"
+            ],
+
+            "Google": [
+                "google"
+            ],
+
+            "Gmail": [
+                "gmail",
+                "check my email"
+            ],
+
+            "LinkedIn": [
+                "linkedin"
+            ],
+
+            "Spotify": [
+                "spotify",
+                "listen to music"
+            ],
+
+            "Telegram": [
+                "telegram"
+            ],
+
+            "Discord": [
+                "discord"
+            ],
+
+            "Netflix": [
+                "netflix"
+            ],
+
+            "Pinterest": [
+                "pinterest"
+            ],
+
+            "Reddit": [
+                "reddit"
+            ],
+
+            "Snapchat": [
+                "snapchat"
+            ],
+
+            "Play Store": [
+                "play store",
+                "google play"
+            ]
+
+        }
+
+        for app_name, phrases in app_patterns.items():
+
+            for phrase in phrases:
+
+                if phrase in text:
+
+                    return {
+                        "intent":
+                            "open_app",
+
+                        "app":
+                            app_name
+                    }
+
+        # ------------------------------------------------
+        # NOTHING MATCHED
+        # ------------------------------------------------
+
+        return {
+            "intent":
+                "none"
+        }
