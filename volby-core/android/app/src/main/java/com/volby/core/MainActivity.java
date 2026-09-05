@@ -50,6 +50,10 @@ public class MainActivity extends Activity {
         requestMicrophonePermission();
     }
 
+    // ==================================================
+    // UI
+    // ==================================================
+
     private void createUI() {
 
         LinearLayout layout =
@@ -105,6 +109,7 @@ public class MainActivity extends Activity {
 
         setContentView(layout);
 
+        // Manual text command
         sendButton.setOnClickListener(
                 v -> sendToBackend(
                         input.getText()
@@ -113,10 +118,15 @@ public class MainActivity extends Activity {
                 )
         );
 
+        // Voice command
         voiceButton.setOnClickListener(
                 v -> toggleVoice()
         );
     }
+
+    // ==================================================
+    // MICROPHONE PERMISSION
+    // ==================================================
 
     private void requestMicrophonePermission() {
 
@@ -134,6 +144,10 @@ public class MainActivity extends Activity {
             );
         }
     }
+
+    // ==================================================
+    // SPEECH RECOGNIZER
+    // ==================================================
 
     private void setupSpeechRecognizer() {
 
@@ -220,6 +234,10 @@ public class MainActivity extends Activity {
                         );
                     }
 
+                    // ==================================================
+                    // VOICE RESULT
+                    // ==================================================
+
                     @Override
                     public void onResults(
                             Bundle results
@@ -244,15 +262,22 @@ public class MainActivity extends Activity {
                         ) {
 
                             String command =
-                                    matches.get(0);
+                                    matches.get(0).trim();
 
+                            // Put recognized speech into text box
                             input.setText(command);
 
                             responseText.setText(
                                     "You said:\n"
                                             + command
-                                            + "\n\nThinking..."
+                                            + "\n\n"
+                                            + "Volby is thinking..."
                             );
+
+                            // ==================================================
+                            // IMPORTANT:
+                            // AUTOMATICALLY SEND VOICE COMMAND
+                            // ==================================================
 
                             sendToBackend(command);
 
@@ -279,6 +304,10 @@ public class MainActivity extends Activity {
                 }
         );
     }
+
+    // ==================================================
+    // VOICE BUTTON
+    // ==================================================
 
     private void toggleVoice() {
 
@@ -315,6 +344,10 @@ public class MainActivity extends Activity {
             startListening();
         }
     }
+
+    // ==================================================
+    // START LISTENING
+    // ==================================================
 
     private void startListening() {
 
@@ -360,6 +393,10 @@ public class MainActivity extends Activity {
         }
     }
 
+    // ==================================================
+    // SPEECH ERRORS
+    // ==================================================
+
     private String speechError(
             int error
     ) {
@@ -392,12 +429,18 @@ public class MainActivity extends Activity {
         }
     }
 
+    // ==================================================
+    // SEND TO VOLBY BACKEND
+    // ==================================================
+
     private void sendToBackend(
             String message
     ) {
 
-        if (message == null ||
-                message.trim().isEmpty()) {
+        if (
+                message == null ||
+                message.trim().isEmpty()
+        ) {
 
             responseText.setText(
                     "Enter or speak a command first."
@@ -481,7 +524,10 @@ public class MainActivity extends Activity {
 
                 reader.close();
 
-                if (code < 200 || code >= 300) {
+                if (
+                        code < 200 ||
+                        code >= 300
+                ) {
 
                     throw new Exception(
                             "HTTP "
@@ -516,6 +562,10 @@ public class MainActivity extends Activity {
                             response
                     );
 
+                    // ==================================================
+                    // EXECUTE ACTION AUTOMATICALLY
+                    // ==================================================
+
                     if (action != null) {
 
                         executeAction(action);
@@ -538,12 +588,17 @@ public class MainActivity extends Activity {
             } finally {
 
                 if (connection != null) {
+
                     connection.disconnect();
                 }
             }
 
         }).start();
     }
+
+    // ==================================================
+    // ACTION EXECUTOR
+    // ==================================================
 
     private void executeAction(
             JSONObject action
@@ -562,22 +617,30 @@ public class MainActivity extends Activity {
             if (action.has("app")) {
 
                 value =
-                        action.optString("app");
+                        action.optString(
+                                "app"
+                        );
 
             } else if (action.has("url")) {
 
                 value =
-                        action.optString("url");
+                        action.optString(
+                                "url"
+                        );
 
             } else if (action.has("query")) {
 
                 value =
-                        action.optString("query");
+                        action.optString(
+                                "query"
+                        );
 
             } else if (action.has("text")) {
 
                 value =
-                        action.optString("text");
+                        action.optString(
+                                "text"
+                        );
             }
 
             String finalValue = value;
@@ -607,6 +670,10 @@ public class MainActivity extends Activity {
             );
         }
     }
+
+    // ==================================================
+    // CLEANUP
+    // ==================================================
 
     @Override
     protected void onDestroy() {
