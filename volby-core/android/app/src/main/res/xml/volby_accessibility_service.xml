@@ -11,4 +11,4 @@
 
     android:canRetrieveWindowContent="true"
 
-    android:description="@string/app_name" />
+    android:description="Volby Core Accessibility Service" />
