@@ -36,7 +36,7 @@
         <package android:name="com.netflix.mediaclient" />
         <package android:name="in.amazon.mShop.android.shopping" />
         <package android:name="com.flipkart.android" />
-        <package android:name="com.phonepe.app" />
+        <package name="com.phonepe.app" />
         <package android:name="net.one97.paytm" />
         <package android:name="com.application.zomato" />
         <package android:name="in.swiggy.android" />
@@ -48,6 +48,7 @@
         android:allowBackup="false"
         android:supportsRtl="true">
 
+        <!-- Main Volby Core Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -58,6 +59,22 @@
             </intent-filter>
 
         </activity>
+
+        <!-- Volby UI Control Accessibility Service -->
+        <service
+            android:name=".accessibility.VolbyAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="false">
+
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/volby_accessibility_service" />
+
+        </service>
 
     </application>
 
